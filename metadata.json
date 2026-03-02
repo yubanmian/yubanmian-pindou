@@ -1,0 +1,7 @@
+{
+  "name": "拼豆艺术馆 (Pingo Art)",
+  "description": "AI 驱动的拼豆像素画创作工具。支持关键词生成像素画及照片一键转像素风格。",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
