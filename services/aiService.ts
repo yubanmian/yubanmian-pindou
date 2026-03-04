@@ -1,5 +1,30 @@
 
 import { GoogleGenAI } from "@google/genai";
+import { PERLER_PALETTE } from "../types";
+
+/**
+ * Helper to find the nearest color in the palette
+ */
+const getNearestPaletteColor = (r: number, g: number, b: number): string => {
+  let minDistance = Infinity;
+  let nearestHex = PERLER_PALETTE[0].hex;
+
+  for (const color of PERLER_PALETTE) {
+    const pr = parseInt(color.hex.slice(1, 3), 16);
+    const pg = parseInt(color.hex.slice(3, 5), 16);
+    const pb = parseInt(color.hex.slice(5, 7), 16);
+
+    const distance = Math.sqrt(
+      Math.pow(r - pr, 2) + Math.pow(g - pg, 2) + Math.pow(b - pb, 2)
+    );
+
+    if (distance < minDistance) {
+      minDistance = distance;
+      nearestHex = color.hex;
+    }
+  }
+  return nearestHex;
+};
 
 // Fixed: The API key must be obtained exclusively from process.env.API_KEY and used directly in initialization.
 export const generatePixelArtFromPrompt = async (prompt: string): Promise<string> => {
@@ -85,10 +110,11 @@ export const imageToGrid = (imgUrl: string, size: number = 50): Promise<string[]
           const a = imageData[i + 3];
           
           // Treat bright white or transparent as empty
-          if (a < 50 || (r > 250 && g > 250 && b > 250)) {
+          if (a < 50 || (r > 245 && g > 245 && b > 245)) {
             row.push(""); 
           } else {
-            row.push(`#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`);
+            // Snap to nearest palette color
+            row.push(getNearestPaletteColor(r, g, b));
           }
         }
         grid.push(row);

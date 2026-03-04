@@ -176,16 +176,16 @@ const App: React.FC = () => {
   };
 
   const handleDownload = () => {
-    const canvas = canvasHandleRef.current?.getCanvas();
-    if (!canvas) {
-      showToast("无法获取画布 T_T");
+    const blueprintData = canvasHandleRef.current?.generateBlueprint();
+    if (!blueprintData) {
+      showToast("无法生成图纸 T_T");
       return;
     }
     
     try {
       const link = document.createElement('a');
-      link.download = `pingo-art-${Date.now()}.png`;
-      link.href = canvas.toDataURL('image/png');
+      link.download = `pingo-art-blueprint-${Date.now()}.png`;
+      link.href = blueprintData;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -289,13 +289,25 @@ const App: React.FC = () => {
                     placeholder="输入灵感，如 '可爱的柯基'..."
                     className="flex-1 border-2 border-gray-100 rounded-xl px-4 py-2 focus:border-pingo-primary outline-none transition-all font-sans text-sm"
                   />
-                  <button 
-                    onClick={handleGenerate}
-                    disabled={isGenerating}
-                    className={`px-4 py-2 rounded-xl text-white font-bold transition-all flex items-center justify-center min-w-[80px] ${isGenerating ? 'bg-gray-300' : 'bg-pingo-primary shadow-lg active:scale-95'}`}
-                  >
-                    {isGenerating ? <span className="material-symbols-outlined animate-spin">refresh</span> : '生成'}
-                  </button>
+                  <div className="flex gap-1">
+                    <button 
+                      onClick={handleGenerate}
+                      disabled={isGenerating}
+                      className={`px-4 py-2 rounded-xl text-white font-bold transition-all flex items-center justify-center min-w-[80px] ${isGenerating ? 'bg-gray-300' : 'bg-pingo-primary shadow-lg active:scale-95'}`}
+                    >
+                      {isGenerating ? <span className="material-symbols-outlined animate-spin">refresh</span> : '生成'}
+                    </button>
+                    {grid.some(row => row.some(cell => cell !== "")) && (
+                      <button 
+                        onClick={handleGenerate}
+                        disabled={isGenerating}
+                        title="换个角度/重新生成"
+                        className={`p-2 rounded-xl border-2 border-pingo-primary text-pingo-primary transition-all flex items-center justify-center ${isGenerating ? 'opacity-50' : 'hover:bg-pingo-primary/5 active:scale-95'}`}
+                      >
+                        <span className={`material-symbols-outlined ${isGenerating ? 'animate-spin' : ''}`}>autorenew</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
               ) : (
                 <div className="flex flex-col gap-2">

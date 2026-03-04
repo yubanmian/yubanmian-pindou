@@ -1,6 +1,6 @@
 
 import React, { useRef, useEffect, useState, forwardRef, useImperativeHandle } from 'react';
-import { Tool } from '../types';
+import { Tool, PERLER_PALETTE } from '../types';
 
 interface BeadCanvasProps {
   grid: string[][];
@@ -12,6 +12,7 @@ interface BeadCanvasProps {
 
 export interface BeadCanvasHandle {
   getCanvas: () => HTMLCanvasElement | null;
+  generateBlueprint: () => string;
 }
 
 const BeadCanvas = forwardRef<BeadCanvasHandle, BeadCanvasProps>(({ grid, setGrid, onActionStart, selectedColor, selectedTool }, ref) => {
@@ -27,7 +28,140 @@ const BeadCanvas = forwardRef<BeadCanvasHandle, BeadCanvasProps>(({ grid, setGri
   }, [grid, size]);
 
   useImperativeHandle(ref, () => ({
-    getCanvas: () => canvasRef.current
+    getCanvas: () => canvasRef.current,
+    generateBlueprint: () => {
+      const blueprintCanvas = document.createElement('canvas');
+      const ctx = blueprintCanvas.getContext('2d');
+      if (!ctx) return "";
+
+      const padding = 60;
+      const cellSize = 30;
+      const gridWidth = size * cellSize;
+      const footerHeight = 200;
+      
+      blueprintCanvas.width = gridWidth + padding * 2;
+      blueprintCanvas.height = gridWidth + padding * 2 + footerHeight;
+
+      // Background
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, blueprintCanvas.width, blueprintCanvas.height);
+
+      // Draw Grid Numbers (Top & Left)
+      ctx.fillStyle = '#999';
+      ctx.font = '12px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+
+      for (let i = 0; i < size; i++) {
+        // Top numbers
+        ctx.fillText((i + 1).toString(), padding + i * cellSize + cellSize / 2, padding / 2);
+        // Left numbers
+        ctx.fillText((i + 1).toString(), padding / 2, padding + i * cellSize + cellSize / 2);
+      }
+
+      // Draw Grid Lines
+      ctx.strokeStyle = '#eee';
+      ctx.lineWidth = 1;
+      for (let i = 0; i <= size; i++) {
+        // Vertical
+        ctx.beginPath();
+        ctx.moveTo(padding + i * cellSize, padding);
+        ctx.lineTo(padding + i * cellSize, padding + gridWidth);
+        ctx.stroke();
+        // Horizontal
+        ctx.beginPath();
+        ctx.moveTo(padding, padding + i * cellSize);
+        ctx.lineTo(padding + gridWidth, padding + i * cellSize);
+        ctx.stroke();
+      }
+
+      // Statistics
+      const colorCounts: Record<string, number> = {};
+      let totalBeads = 0;
+
+      // Draw Beads
+      for (let y = 0; y < size; y++) {
+        for (let x = 0; x < size; x++) {
+          const color = localGridRef.current[y][x];
+          if (color) {
+            totalBeads++;
+            colorCounts[color] = (colorCounts[color] || 0) + 1;
+
+            const centerX = padding + x * cellSize + cellSize / 2;
+            const centerY = padding + y * cellSize + cellSize / 2;
+            const radius = cellSize * 0.4;
+
+            // Bead Circle
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+            ctx.fillStyle = color;
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(0,0,0,0.1)';
+            ctx.stroke();
+
+            // Find Color ID
+            const beadInfo = PERLER_PALETTE.find(p => p.hex.toLowerCase() === color.toLowerCase());
+            if (beadInfo) {
+              ctx.fillStyle = (parseInt(color.replace('#', ''), 16) > 0xffffff / 2) ? '#000' : '#fff';
+              ctx.font = 'bold 8px sans-serif';
+              ctx.fillText(beadInfo.id, centerX, centerY);
+            }
+          }
+        }
+      }
+
+      // Footer Section
+      const footerY = padding + gridWidth + 40;
+      ctx.fillStyle = '#333';
+      ctx.font = 'bold 18px sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillText(`像素总量: ${totalBeads}`, padding, footerY);
+
+      ctx.font = 'bold 14px sans-serif';
+      ctx.fillText('画布统计', padding, footerY + 30);
+
+      // Color Palette Summary
+      const sortedColors = Object.entries(colorCounts).sort((a, b) => b[1] - a[1]);
+      let currentX = padding;
+      let currentY = footerY + 60;
+      const itemWidth = 80;
+      const itemHeight = 60;
+
+      sortedColors.forEach(([color, count]) => {
+        const beadInfo = PERLER_PALETTE.find(p => p.hex.toLowerCase() === color.toLowerCase());
+        const label = beadInfo ? beadInfo.id : '??';
+
+        // Swatch
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.roundRect(currentX, currentY, 40, 30, 8);
+        ctx.fill();
+        ctx.strokeStyle = '#eee';
+        ctx.stroke();
+
+        // Label & Count
+        ctx.fillStyle = '#333';
+        ctx.font = 'bold 12px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(label, currentX + 20, currentY - 10);
+        ctx.font = '12px sans-serif';
+        ctx.fillText(count.toString(), currentX + 20, currentY + 45);
+
+        currentX += itemWidth;
+        if (currentX + itemWidth > blueprintCanvas.width - padding) {
+          currentX = padding;
+          currentY += itemHeight + 20;
+        }
+      });
+
+      // Watermark
+      ctx.fillStyle = '#ccc';
+      ctx.font = 'italic 12px sans-serif';
+      ctx.textAlign = 'right';
+      ctx.fillText('Generated by Pingo Art AI', blueprintCanvas.width - padding, blueprintCanvas.height - 20);
+
+      return blueprintCanvas.toDataURL('image/png');
+    }
   }));
 
   const drawBead = (ctx: CanvasRenderingContext2D, x: number, y: number, color: string, cellSize: number) => {
